@@ -39,6 +39,7 @@ Scaup
 
 2. R script - glc_prot6_spp7_hn_run.R
 
+
 Data management file for R:
 
 1. glc_spp8_5km_up.R
