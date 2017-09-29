@@ -1,0 +1,261 @@
+
+    
+    model{
+    #detection priors
+    
+    sigma.p0[1] ~ dnorm(mu.p,tau.p)
+    sigma.p0[2] ~ dnorm(mu.p,tau.p)
+    sigma.p0[3] <- mean(sigma.p0[protsel])
+    sigma.p0[4] ~ dnorm(mu.p,tau.p)
+    sigma.p0[5] <- mean(sigma.p0[protsel])
+    sigma.p0[6] ~ dnorm(mu.p,tau.p)
+    
+    mu.p ~ dnorm(0, 0.1)
+    tau.p <- 1/sig.p^2
+    sig.p ~ dunif(0,20)
+    
+    s.b1 ~ dnorm(0, 0.1)
+    s.b2 ~ dnorm(0, 0.1)
+    s.b3 ~ dnorm(0, 0.1)
+    s.b4 ~ dnorm(0, 0.1)
+    
+    #ecological priors
+    thetaZI ~ dnorm(0, 0.5)
+    thetaZI.b1 ~ dnorm(0, 0.5)
+    thetaZI.b2 ~ dnorm(0, 0.5)
+    thetaZI.b3 ~ dnorm(0, 0.5)
+    thetaZI.b4 ~ dnorm(0, 0.5)
+    thetaZI.b5 ~ dnorm(0, 0.5)
+    N.b0 ~ dnorm(0, 0.1)
+    N.b1 ~ dnorm(0, 0.1)
+    N.b2 ~ dnorm(0, 0.1)
+    N.b3 ~ dnorm(0, 0.1)
+    N.b4 ~ dnorm(0, 0.1)
+    N.b5 ~ dnorm(0, 0.1)
+    N.b6 ~ dnorm(0, 0.1)
+    N.b7 ~ dnorm(0, 0.1)
+    N.b8 ~ dnorm(0, 0.1)
+    
+    tau.NE <- 1/sig.NE^2
+    sig.NE ~ dunif(0, 20)
+    
+    #groupsize
+    for (j in 1:nprot){
+    b0.gp[j] ~ dnorm(0, 0.1)
+    b1.gp[j] ~ dnorm(0, 0.1)
+    tau.gp[j]<-1/sig.gp[j]^2
+    sig.gp[j] ~ dunif(0, 20)
+    }#j
+    
+    #distance detection framework excluding all distance break related information
+    for(j in 1:nprot){
+    for(k in 1:nsegvis[j]){
+    
+    sigma[j, k] <- exp(sigma.p0[j] +  s.b1*V1[j, k] + s.b2*V2[j, k] + s.b3*V3[j, k] + s.b4*V4[j, k])
+    pdet[j, k] <- sum(pi.pd[j, k, 1:nbreaks[j]])
+    f.0[j, k] <- 2*dnorm(0,0,1/sigma[j, k]^2)
+    
+    #ecological process model
+    y[j, k] ~ dbin(pdet[j, k], N[j, k])
+    yrep[j, k] ~ dbin(pdet[j, k], N[j, k])
+    
+    N[j, k] ~ dpois(lambda[j, k] * x[j, k])
+    lambda[j, k] <- exp(N.b0 + tarea[j, k]  + N.b2*X2[j, k] + 
+    N.b4*X4[j, k] + N.b6*X10[j, k] + N.b7*X11[j, k] + N.E[j, k]) #  ) #+ N.b8*(X11[j, k]^2)  + N.b3*X3[j, k] + N.b5*X5[j, k] + N.b1*X1[j, k]
+    
+    
+    N.E[j, k] ~ dnorm(0, tau.NE)
+    
+    x[j, k] ~ dbern(psi[j, k])
+    logit(psi[j, k]) <- thetaZI + 
+    thetaZI.b1*X13[j, k] + thetaZI.b2*(X13[j, k]^2)  + thetaZI.b3*X14[j, k] + thetaZI.b4*X8[j, k] + thetaZI.b5*X9[j, k] #
+    
+    exp.y[j, k] <- pdet[j, k] * N[j, k]
+    
+    E.y[j, k] <- pow(sqrt(y[j, k]) - sqrt(exp.y[j, k]), 2)
+    E.yrep[j, k] <- pow(sqrt(yrep[j, k]) - sqrt(exp.y[j, k]), 2)
+    
+    }#k
+    
+    Np[j]<-sum(N[j, 1:nsegvis[j]])
+    
+    yfitp[j] <- sum(E.y[j, 1:nsegvis[j]])
+    yfitprep[j] <- sum(E.yrep[j, 1:nsegvis[j]])
+    
+    }#j
+    
+    yfit<-sum(yfitp[])
+    yfitrep<-sum(yfitprep[])
+    
+    #Seperate distance models for each survey so we can do a PPC on each to check model fit
+    #Survey 1 (BRI)
+    
+    for(k in 1:nsegvis[1]){
+    for(b in 1:nbreaks[1]){
+    hi[1, k, b] <- pnorm(midpts[1,b]+delta[1,b]/2,0,1/sigma[1, k]^2) 
+    low[1, k, b] <- pnorm(midpts[1,b]-delta[1,b]/2,0,1/sigma[1, k]^2)
+    p[1, k, b] <- 2*(hi[1, k, b]-low[1, k, b])
+    g[1, k, b] <- p[1, k, b]/f.0[1, k]/delta[1, b]
+    f[1, k, b] <- delta[1,b]/maxd[1] 
+    pi.pd[1, k, b] <- g[1, k, b]*f[1, k, b]
+    pi.pd.c[1, k, b] <- pi.pd[1, k, b]/pdet[1, k]
+    pi.pd.check1[k, b]<-pi.pd.c[1, k, b]
+    pi.pd1[k, b]<-pi.pd[1, k, b]
+    }#b
+    }#k
+    
+    #Survey 2 (CLH2)
+    
+    for(k in 1:nsegvis[2]){
+    for(b in 1:nbreaks[2]){
+    hi[2, k, b] <- pnorm(midpts[2,b]+delta[2,b]/2,0,1/sigma[2, k]^2) 
+    low[2, k, b] <- pnorm(midpts[2,b]-delta[2,b]/2,0,1/sigma[2, k]^2)
+    p[2, k, b] <- 2*(hi[2, k, b]-low[2, k, b])
+    g[2, k, b] <- p[2, k, b]/f.0[2, k]/delta[2, b]
+    f[2, k, b] <- delta[2,b]/maxd[2] 
+    pi.pd[2, k, b] <- g[2, k, b]*f[2, k, b]
+    pi.pd.c[2, k, b] <- pi.pd[2, k, b]/pdet[2, k]
+    pi.pd.check2[k, b]<-pi.pd.c[2, k, b]
+    pi.pd2[k, b]<-pi.pd[2, k, b]
+    }#b
+    }#k
+    
+    #Survey 3 (USGS1)
+    
+    for(k in 1:nsegvis[3]){
+    for(b in 1:nbreaks[3]){
+    hi[3, k, b] <- pnorm(midpts[3,b]+delta[3,b]/2,0,1/sigma[3, k]^2) 
+    low[3, k, b] <- pnorm(midpts[3,b]-delta[3,b]/2,0,1/sigma[3, k]^2)
+    p[3, k, b] <- 2*(hi[3, k, b]-low[3, k, b])
+    g[3, k, b] <- p[3, k, b]/f.0[3, k]/delta[3, b]
+    f[3, k, b] <- delta[3,b]/maxd[3] 
+    pi.pd[3, k, b] <- g[3, k, b]*f[3, k, b]
+    pi.pd.c[3, k, b] <- pi.pd[3, k, b]/pdet[3, k]
+    pi.pd.check3[k, b]<-pi.pd.c[3, k, b]
+    pi.pd3[k, b]<-pi.pd[3, k, b]
+    }#b
+    }#k
+    
+    #Survey 4 (USGS2)
+    
+    for(k in 1:nsegvis[4]){
+    for(b in 1:nbreaks[4]){
+    hi[4, k, b] <- pnorm(midpts[4,b]+delta[4,b]/2,0,1/sigma[4, k]^2) 
+    low[4, k, b] <- pnorm(midpts[4,b]-delta[4,b]/2,0,1/sigma[4, k]^2)
+    p[4, k, b] <- 2*(hi[4, k, b]-low[4, k, b])
+    g[4, k, b] <- p[4, k, b]/f.0[4, k]/delta[4, b]
+    f[4, k, b] <- delta[4,b]/maxd[4] 
+    pi.pd[4, k, b] <- g[4, k, b]*f[4, k, b]
+    pi.pd.c[4, k, b] <- pi.pd[4, k, b]/pdet[4, k]
+    pi.pd.check4[k, b]<-pi.pd.c[4, k, b]
+    pi.pd4[k, b]<-pi.pd[4, k, b]
+    }#b
+    }#k
+    
+    #Survey 5 (WGLBBO1)
+    
+    for(k in 1:nsegvis[5]){
+    for(b in 1:nbreaks[5]){
+    hi[5, k, b] <- pnorm(midpts[5,b]+delta[5,b]/2,0,1/sigma[5, k]^2) 
+    low[5, k, b] <- pnorm(midpts[5,b]-delta[5,b]/2,0,1/sigma[5, k]^2)
+    p[5, k, b] <- 2*(hi[5, k, b]-low[5, k, b])
+    g[5, k, b] <- p[5, k, b]/f.0[5, k]/delta[5, b]
+    f[5, k, b] <- delta[5,b]/maxd[5] 
+    pi.pd[5, k, b] <- g[5, k, b]*f[5, k, b]
+    pi.pd.c[5, k, b] <- pi.pd[5, k, b]/pdet[5, k]
+    pi.pd.check5[k, b]<-pi.pd.c[5, k, b]
+    pi.pd5[k, b]<-pi.pd[5, k, b]
+    }#b
+    }#k
+    
+    #Survey 6 (WGLBBO2)
+    
+    
+    for(k in 1:nsegvis[6]){
+    for(b in 1:nbreaks[6]){
+    hi[6, k, b] <- pnorm(midpts[6,b]+delta[6,b]/2,0,1/sigma[6, k]^2) 
+    low[6, k, b] <- pnorm(midpts[6,b]-delta[6,b]/2,0,1/sigma[6, k]^2)
+    p[6, k, b] <- 2*(hi[6, k, b]-low[6, k, b])
+    g[6, k, b] <- p[6, k, b]/f.0[6, k]/delta[6, b]
+    f[6, k, b] <- delta[6,b]/maxd[6] 
+    pi.pd[6, k, b] <- g[6, k, b]*f[6, k, b]
+    pi.pd.c[6, k, b] <- pi.pd[6, k, b]/pdet[6, k]
+    pi.pd.check6[k, b]<-pi.pd.c[6, k, b]
+    pi.pd6[k, b]<-pi.pd[6, k, b]
+    }#b
+    }#k
+    
+    
+    #linking the distance observations to this detection/abundance framework and groupsize stuff!!
+    
+    for(j in protsel){
+    for(i in 1:nobs[j]){
+    
+    distclass[j, i] ~ dcat(pi.pd.c[j, segvisi[j, i], 1:nbreaks[j]])
+    distclassnew[j, i] ~ dcat(pi.pd.c[j, segvisi[j, i], 1:nbreaks[j]])
+    
+    }#i
+    }#j
+    
+    
+    #checking each survey for detection function fit
+    
+    for(i in 1:nobs[1]){
+    Tobsp1[i]<-pow(1-sqrt(pi.pd.check1[segvisi[1, i], distclass[1, i]]), 2)
+    Tobspnew1[i]<-pow(1-sqrt(pi.pd.check1[segvisi[1, i], distclassnew[1, i]]), 2)
+    loggpsz[1, i] ~ dnorm(mu.gp[1, i], tau.gp[1])
+    log(mu.gp[1, i]) <- b0.gp[1] + pi.pd1[segvisi[1, i], distclass[1, i]]*b1.gp[1]
+    }
+    # #
+    for(i in 1:nobs[2]){
+    Tobsp2[i]<-pow(1-sqrt(pi.pd.check2[segvisi[2, i], distclass[2, i]]), 2)
+    Tobspnew2[i]<-pow(1-sqrt(pi.pd.check2[segvisi[2, i], distclassnew[2, i]]), 2)
+    loggpsz[2, i] ~ dnorm(mu.gp[2, i], tau.gp[2])
+    log(mu.gp[2, i]) <- b0.gp[2] + pi.pd2[segvisi[2, i], distclass[2, i]]*b1.gp[2]
+    }
+    # #
+    #for(i in 1:nobs[3]){
+    #Tobsp3[i]<-pow(1-sqrt(pi.pd.check3[segvisi[3, i], distclass[3, i]]), 2)
+    #Tobspnew3[i]<-pow(1-sqrt(pi.pd.check3[segvisi[3, i], distclassnew[3, i]]), 2)
+    #loggpsz[3, i] ~ dnorm(mu.gp[3, i], tau.gp[3])
+    #log(mu.gp[3, i]) <- b0.gp[3] + pi.pd3[segvisi[3, i], distclass[3, i]]*b1.gp[3]
+    #}
+    # #
+    for(i in 1:nobs[4]){
+    Tobsp4[i]<-pow(1-sqrt(pi.pd.check4[segvisi[4, i], distclass[4, i]]), 2)
+    Tobspnew4[i]<-pow(1-sqrt(pi.pd.check4[segvisi[4, i], distclassnew[4, i]]), 2)
+    loggpsz[4, i] ~ dnorm(mu.gp[4, i], tau.gp[4])
+    log(mu.gp[4, i]) <- b0.gp[4] + pi.pd4[segvisi[4, i], distclass[4, i]]*b1.gp[4]
+    }
+    # #
+    #for(i in 1:nobs[5]){
+    # # Tobsp5[i]<-pow(1-sqrt(pi.pd.check5[segvisi[5, i], distclass[5, i]]), 2)
+    # # Tobspnew5[i]<-pow(1-sqrt(pi.pd.check5[segvisi[5, i], distclassnew[5, i]]), 2)
+    #loggpsz[5, i] ~ dnorm(mu.gp[5, i], tau.gp[5])
+    #log(mu.gp[5, i]) <- b0.gp[5] + pi.pd5[segvisi[5, i], distclass[5, i]]*b1.gp[5]
+    #}
+    #
+    for(i in 1:nobs[6]){
+    Tobsp6[i]<-pow(1-sqrt(pi.pd.check6[segvisi[6, i], distclass[6, i]]), 2)
+    Tobspnew6[i]<-pow(1-sqrt(pi.pd.check6[segvisi[6, i], distclassnew[6, i]]), 2)
+    loggpsz[6, i] ~ dnorm(mu.gp[6, i], tau.gp[6])
+    log(mu.gp[6, i]) <- b0.gp[6] + pi.pd6[segvisi[6, i], distclass[6, i]]*b1.gp[6]
+    }
+    
+    # 
+    Tobs[1]<-sum(Tobsp1[])
+    Tobs[2]<-sum(Tobsp2[])
+    Tobs[3]<-sum(Tobsp4[])
+    Tobs[4]<-sum(Tobsp6[])
+    
+    Tobsnew[1]<-sum(Tobspnew1[])
+    Tobsnew[2]<-sum(Tobspnew2[])
+    Tobsnew[3]<-sum(Tobspnew4[])
+    Tobsnew[4]<-sum(Tobspnew6[])
+    
+    
+    Tob<-sum(Tobs[1:4])
+    Tobnew<-sum(Tobsnew[1:4])
+    
+    }#model
+    
