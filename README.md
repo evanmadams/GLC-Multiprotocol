@@ -5,40 +5,41 @@ Files included:
 
 Long-tailed Duck
 
-JAGS model - glc_p6_spp1_hn.txt
-R script - glc_prot6_spp1_hn_run.R
+1. JAGS model - glc_p6_spp1_hn.txt
+
+2. R script - glc_prot6_spp1_hn_run.R
 
 Gulls
 
-JAGS model - glc_spp2_haz.txt
+1. JAGS model - glc_spp2_haz.txt
 
-R script - glc_spp2_haz_run.R
+2. R script - glc_spp2_haz_run.R
 
 Goldeneyes
 
-JAGS model - glc_p6_spp3.txt
+1. JAGS model - glc_p6_spp3.txt
 
-R script - glc_prot6_spp3_hn_run.R
+2. R script - glc_prot6_spp3_hn_run.R
 
 Loons
 
-JAGS model - glc_p7_spp5.txt
+1. JAGS model - glc_p7_spp5.txt
 
-R script - glc_prot7_spp5_hn_run.R
+2. R script - glc_prot7_spp5_hn_run.R
 
 Mergansers
 
-JAGS model - glc_p6_spp6.txt
+1. JAGS model - glc_p6_spp6.txt
 
-R script - glc_prot6_spp6_hn_run.R
+2. R script - glc_prot6_spp6_hn_run.R
 
 Scaup
 
-JAGS model - glc_p6_spp7.txt
+1. JAGS model - glc_p6_spp7.txt
 
-R script - glc_prot6_spp7_hn_run.R
+2. R script - glc_prot6_spp7_hn_run.R
 
 Data management file for R:
 
-glc_spp8_5km_up.R
+1. glc_spp8_5km_up.R
 
